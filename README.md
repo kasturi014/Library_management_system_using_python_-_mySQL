@@ -1,1 +1,1 @@
-# Library_management_system_using_python_-_mySQL
+# Library_management_system_using_python_and_mySQL
