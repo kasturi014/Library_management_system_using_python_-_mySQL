@@ -4,6 +4,8 @@ import customs as cs
 from functools import partial
 import pymysql
 import credentials as cr
+from PIL import Image, ImageTk
+import tkinter as tk
 
 
 class Management:
@@ -13,9 +15,26 @@ class Management:
         self.window.geometry("1070x540")
         self.window.config(bg = "white")
 
+        
+
         # Left Frame
-        self.frame_1 = Frame(self.window, bg=cs.color_1)
-        self.frame_1.place(x=0, y=0, width=740, relheight = 1)
+        self.frame_1 = Frame(self.window)
+        self.frame_1.place(x=0, y=0, width=740, relheight=1)
+
+        # Load and resize the background image
+        self.background_image = Image.open("image.jpg")  # Use your image name here
+        self.background_image = self.background_image.resize((740, 500), Image.LANCZOS)  # Resize if needed
+        self.bg_image = ImageTk.PhotoImage(self.background_image)
+
+        # Create a label with the background image
+        background_label = tk.Label(self.frame_1, image=self.bg_image)
+        background_label.place(x=0, y=0, relwidth=1, relheight=1)
+
+        # Now you can add other widgets to your frame
+        title_label = tk.Label(self.frame_1, text="Library Management System", font=("Helvetica", 24), bg="white")
+        title_label.pack(pady=20)
+
+
 
         # Right Frame
         self.frame_2 = Frame(self.window, bg = cs.color_2)
@@ -350,4 +369,355 @@ class Management:
         for list in rows:
             self.tree.insert("", 'end', text=(rows.index(list)+1), values=(list[0], list[1], list[2], list[3], list[4], list[5]))
 
-    # Function 15: It gets call from 'Function 13' and shows 
+    # Function 15: It gets call from 'Function 13' and shows all the book records
+    # taken by a student as per the roll number. If the users select a record, they
+    # can delete that record or issue the book again for the student
+    def ShowRecordsforReturn(self):
+        if self.roll_no_entry.get() == "":
+            messagebox.showerror("Error!", "Please enter a roll no.")
+        else:
+            try:
+                connection = pymysql.connect(host=cr.host, user=cr.user, password=cr.password, database=cr.database)
+                curs = connection.cursor()
+                curs.execute("select * from borrow_record where stu_roll=%s", self.roll_no_entry.get())
+                rows=curs.fetchall()
+                
+                if len(rows) == 0:
+                    messagebox.showerror("Error!","This roll no. doesn't exists",parent=self.window)
+                    connection.close()
+                    self.roll_no_entry.delete(0, END)
+                else:
+                    connection.close()
+                    self.ClearScreen()
+
+                    # Defining two scrollbars
+                    scroll_x = ttk.Scrollbar(self.frame_1, orient=HORIZONTAL)
+                    scroll_y = ttk.Scrollbar(self.frame_1, orient=VERTICAL)
+                    self.tree_1 = ttk.Treeview(self.frame_1, columns=cs.columns_1, height=400, selectmode="extended", yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
+                    scroll_y.config(command=self.tree_1.yview)
+                    # vertical scrollbar: left side
+                    scroll_y.pack(side=LEFT, fill=Y)
+                    scroll_x.config(command=self.tree_1.xview)
+                    # Horizontal scrollbar: at bottom
+                    scroll_x.pack(side=BOTTOM, fill=X)
+
+                    # Table headings
+                    self.tree_1.heading('book_id', text='Book ID', anchor=W)
+                    self.tree_1.heading('book_name', text='Book Name', anchor=W)
+                    self.tree_1.heading('student_roll', text='Student Roll', anchor=W)
+                    self.tree_1.heading('student_name', text='Student Name', anchor=W)
+                    self.tree_1.heading('course', text='Course', anchor=W)
+                    self.tree_1.heading('subject', text='Subject', anchor=W)
+                    self.tree_1.heading('issue_date', text='Issue Date', anchor=W)
+                    self.tree_1.heading('return_date', text='Return Date', anchor=W)
+
+                    self.tree_1.pack()
+                    # Double click on a row
+                    self.tree_1.bind('<Double-Button-1>', self.OnSelectedforReturn)
+
+                    for list in rows:
+                        self.tree_1.insert("", 'end', text=(rows.index(list)+1), values=(list[0], list[1], list[2], list[3], list[4], list[5], list[6], list[7]))
+            except Exception as e:
+                messagebox.showerror("Error!",f"Error due to {str(e)}",parent=self.window)
+
+    # Function 16: It gets call when the user pressed 'Book Holders' button and shows 
+    # all the book records taken by a student. If the users select a record, they
+    # can delete that record or issue the book again for the student. 
+    def AllBorrowRecords(self):
+        self.ClearScreen()
+        # Defining two scrollbars
+        scroll_x = ttk.Scrollbar(self.frame_1, orient=HORIZONTAL)
+        scroll_y = ttk.Scrollbar(self.frame_1, orient=VERTICAL)
+        self.tree_1 = ttk.Treeview(self.frame_1, columns=cs.columns_1, height=400, selectmode="extended", yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
+        scroll_y.config(command=self.tree_1.yview)
+        # vertical scrollbar: left side
+        scroll_y.pack(side=LEFT, fill=Y)
+        scroll_x.config(command=self.tree_1.xview)
+        # Horizontal scrollbar: at bottom
+        scroll_x.pack(side=BOTTOM, fill=X)
+
+        # Table headings
+        self.tree_1.heading('book_id', text='Book ID', anchor=W)
+        self.tree_1.heading('book_name', text='Book Name', anchor=W)
+        self.tree_1.heading('student_roll', text='Student Roll', anchor=W)
+        self.tree_1.heading('student_name', text='Student Name', anchor=W)
+        self.tree_1.heading('course', text='Course', anchor=W)
+        self.tree_1.heading('subject', text='Subject', anchor=W)
+        self.tree_1.heading('issue_date', text='Issue Date', anchor=W)
+        self.tree_1.heading('return_date', text='Return Date', anchor=W)
+
+        self.tree_1.pack()
+        # Double click on a row
+        self.tree_1.bind('<Double-Button-1>', self.OnSelectedforBorrowRecords)
+
+        try:
+            connection = pymysql.connect(host=cr.host, user=cr.user, password=cr.password, database=cr.database)
+            curs = connection.cursor()
+            curs.execute("select * from borrow_record")
+            rows=curs.fetchall()
+
+            if rows == None:
+                messagebox.showinfo("Database Empty","There is no data to show",parent=self.window)
+                connection.close()
+                self.ClearScreen()
+            else:
+                connection.close()
+        except Exception as e:
+            messagebox.showerror("Error!",f"Error due to {str(e)}",parent=self.window)
+
+        for list in rows:
+            self.tree_1.insert("", 'end', text=(rows.index(list)+1), values=(list[0], list[1], list[2], list[3], list[4], list[5], list[6], list[7]))
+    
+    # Function 17: It gets call from 'Function 12' and search a book by the name
+    def SearchBook(self):
+        if self.book_entry.get() == "":
+            messagebox.showerror("Error!", "Please Enter the Book Name")
+        else:
+            try:
+                connection = pymysql.connect(host=cr.host, user=cr.user, password=cr.password, database=cr.database)
+                curs = connection.cursor()
+                curs.execute("select * from book_list where book_name like %s", ("%" + self.book_entry.get() + "%"))
+                rows=curs.fetchall()
+                if rows == None:
+                    messagebox.showinfo("Database Empty","There is no data to show",parent=self.window)
+                    connection.close()
+                    self.ClearScreen()
+                else:
+                    connection.close()
+            except Exception as e:
+                messagebox.showerror("Error!",f"Error due to {str(e)}",parent=self.window)
+                
+            # Defining two scrollbars
+            scroll_x = ttk.Scrollbar(self.frame_1, orient=HORIZONTAL)
+            scroll_y = ttk.Scrollbar(self.frame_1, orient=VERTICAL)
+            self.tree = ttk.Treeview(self.frame_1, columns=cs.columns, height=400, selectmode="extended", yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
+            scroll_y.config(command=self.tree.yview)
+            # vertical scrollbar: left side
+            scroll_y.pack(side=LEFT, fill=Y)
+            scroll_x.config(command=self.tree.xview)
+            # Horizontal scrollbar: at bottom
+            scroll_x.pack(side=BOTTOM, fill=X)
+
+            # Table headings
+            self.tree.heading('book_id', text='Book ID', anchor=W)
+            self.tree.heading('book_name', text='Book Name', anchor=W)
+            self.tree.heading('author', text='Author', anchor=W)
+            self.tree.heading('edition', text='Edition', anchor=W)
+            self.tree.heading('price', text='Price', anchor=W)
+            self.tree.heading('qty', text='Quantity', anchor=W)
+            self.tree.pack()
+            # Double click on a row
+            self.tree.bind('<Double-Button-1>', self.OnSelectedforShowBooks)
+
+            for list in rows:
+                self.tree.insert("", 'end', text=(rows.index(list)+1), values=(list[0], list[1], list[2], list[3], list[4], list[5]))
+    
+    # # Function 18: No longer required
+    # def UpdateBook(self):
+    #     x = self.tree.selection()
+    #     y=self.tree.item(x)['values']
+    #     if y=="":
+    #         messagebox.showerror('Error!', "Please select a record")
+    #     else:
+    #         try:
+    #             connection = pymysql.connect(host=self.host, user=self.user, password=self.password, database=self.database)
+    #             curs = connection.cursor()
+    #             curs.execute("select * from book_list where book_id=%s", y[0])
+    #             row=curs.fetchone()
+    #             # self.GetData_to_Update(row)
+    #             connection.close()
+    #         except Exception as e:
+    #             messagebox.showerror("Error!",f"Error due to {str(e)}",parent=self.window)
+    
+
+
+    # Function 19: This function displays widgets for adding new books
+    def AddNewBook(self):
+        self.ClearScreen()
+
+        book_id = Label(self.frame_1, text="Book Id", font=(cs.font_2, 15, "bold"), bg=cs.color_1).place(x=220,y=30)
+        self.id_entry = Entry(self.frame_1, bg=cs.color_4, fg=cs.color_3)
+        self.id_entry.place(x=220,y=60, width=300)
+
+        book_name = Label(self.frame_1, text="Book Name", font=(cs.font_2, 15, "bold"), bg=cs.color_1).place(x=220,y=100)
+        self.bookname_entry = Entry(self.frame_1, bg=cs.color_4, fg=cs.color_3)
+        self.bookname_entry.place(x=220,y=130, width=300)
+
+        author = Label(self.frame_1, text="Author", font=(cs.font_2, 15, "bold"), bg=cs.color_1).place(x=220,y=170)
+        self.author_entry = Entry(self.frame_1, bg=cs.color_4, fg=cs.color_3)
+        self.author_entry.place(x=220,y=200, width=300)
+
+        edition = Label(self.frame_1, text="Edition", font=(cs.font_2, 15, "bold"), bg=cs.color_1).place(x=220,y=240)
+        self.edition_entry = Entry(self.frame_1, bg=cs.color_4, fg=cs.color_3)
+        self.edition_entry.place(x=220,y=270, width=300)
+
+        price = Label(self.frame_1, text="Price", font=(cs.font_2, 15, "bold"), bg=cs.color_1).place(x=220,y=310)
+        self.price_entry = Entry(self.frame_1, bg=cs.color_4, fg=cs.color_3)
+        self.price_entry.place(x=220,y=340, width=300)
+
+        quantity = Label(self.frame_1, text="Quantity", font=(cs.font_2, 15, "bold"), bg=cs.color_1).place(x=220,y=380)
+        self.qty_entry = Entry(self.frame_1, bg=cs.color_4, fg=cs.color_3)
+        self.qty_entry.place(x=220,y=410, width=300)
+
+        self.submit_bt_1 = Button(self.frame_1, text='Submit', font=(cs.font_1, 12), bd=2, command=self.Submit,cursor="hand2", bg=cs.color_2,fg=cs.color_3).place(x=310,y=459,width=100)
+
+    # # Function 20: No longer required
+    # def GetDataforUpdate(self):
+    #     self.ClearScreen()
+
+    #     book_id = Label(self.frame_1, text="Book Id", font=(cs.font_2, 15, "bold"), bg=cs.color_1).place(x=220,y=30)
+    #     self.id_entry = Entry(self.frame_1, bg=cs.color_4, fg=cs.color_3)
+    #     self.id_entry.place(x=220,y=60, width=300)
+
+    #     book_name = Label(self.frame_1, text="Book Name", font=(cs.font_2, 15, "bold"), bg=cs.color_1).place(x=220,y=100)
+    #     self.bookname_entry = Entry(self.frame_1, bg=cs.color_4, fg=cs.color_3)
+    #     self.bookname_entry.place(x=220,y=130, width=300)
+
+    #     author = Label(self.frame_1, text="Author", font=(cs.font_2, 15, "bold"), bg=cs.color_1).place(x=220,y=170)
+    #     self.author_entry = Entry(self.frame_1, bg=cs.color_4, fg=cs.color_3)
+    #     self.author_entry.place(x=220,y=200, width=300)
+
+    #     edition = Label(self.frame_1, text="Edition", font=(cs.font_2, 15, "bold"), bg=cs.color_1).place(x=220,y=240)
+    #     self.edition_entry = Entry(self.frame_1, bg=cs.color_4, fg=cs.color_3)
+    #     self.edition_entry.place(x=220,y=270, width=300)
+
+    #     price = Label(self.frame_1, text="Price", font=(cs.font_2, 15, "bold"), bg=cs.color_1).place(x=220,y=310)
+    #     self.price_entry = Entry(self.frame_1, bg=cs.color_4, fg=cs.color_3)
+    #     self.price_entry.place(x=220,y=340, width=300)
+
+    #     quantity = Label(self.frame_1, text="Quantity", font=(cs.font_2, 15, "bold"), bg=cs.color_1).place(x=220,y=380)
+    #     self.qty_entry = Entry(self.frame_1, bg=cs.color_4, fg=cs.color_3)
+    #     self.qty_entry.place(x=220,y=410, width=300)
+    #     self.submit_bt_1 = Button(self.frame_1, text='Submit', font=(cs.font_1, 12), bd=2, command=self.Submit,cursor="hand2", bg=cs.color_2,fg=cs.color_3).place(x=310,y=459,width=100)
+
+
+
+    # Function 21: This function adds a new book record'''
+    def Submit(self):
+        if self.id_entry.get() == "" or self.bookname_entry.get() == "" or self.author_entry.get() == "" or self.edition_entry.get() == "" or self.price_entry.get() == "" or self.qty_entry.get() == "":
+            messagebox.showerror("Error!","Sorry!, All fields are required",parent=self.window)
+        else:
+            try:
+                connection = pymysql.connect(host=cr.host, user=cr.user, password=cr.password, database=cr.database)
+                curs = connection.cursor()
+                curs.execute("select * from book_list where book_id=%s", self.id_entry.get())
+                row=curs.fetchone()
+
+                if row!=None:
+                    messagebox.showerror("Error!","This book id is already exists, please try again with another one",parent=self.window)
+                else:
+                    curs.execute("insert into book_list (book_id,book_name,author,edition,price,qty) values(%s,%s,%s,%s,%s,%s)",
+                                        (
+                                            self.id_entry.get(),
+                                            self.bookname_entry.get(),
+                                            self.author_entry.get(),
+                                            self.edition_entry.get(),
+                                            self.price_entry.get(),
+                                            self.qty_entry.get()  
+                                        ))
+                    connection.commit()
+                    connection.close()
+                    messagebox.showinfo('Done!', "The data has been submitted")
+                    self.reset_fields()
+            except Exception as e:
+                messagebox.showerror("Error!",f"Error due to {str(e)}",parent=self.window)
+
+    # Function 22: This function gets call from 'Function 11', is used to submit
+    # data to issue a book
+    def Submit_borrow_data(self):
+        if self.book_id_entry.get()=="" or self.book_name_entry.get()=="" or self.stu_roll_entry.get()=="" or self.stu_name_entry.get()=="" or self.issue_date_entry.get()=="" or self.return_date_entry.get=="" or self.course_entry.get()=="" or self.subject_entry.get()=="":
+            messagebox.showerror("Error!","Sorry!, All fields are required",parent=self.window)
+        else:
+            try:
+                connection = pymysql.connect(host=cr.host, user=cr.user, password=cr.password, database=cr.database)
+                curs = connection.cursor()
+                curs.execute("select * from book_list where book_id=%s", self.book_id_entry.get())
+                row=curs.fetchone()
+                book_quantity = row[5]
+                if row==None:
+                    messagebox.showerror("Error!","This book isn't exist",parent=self.window)
+                elif book_quantity == 1:
+                    messagebox.showwarning("Notification", "This copy is left only one, you can't take it")
+                else:
+                    curs.execute("select * from borrow_record where stu_roll=%s and book_id=%s", (self.stu_roll_entry.get(),self.book_id_entry.get()))
+                    row=curs.fetchone()
+                    if row != None:
+                        messagebox.showerror("Error!", "This book is already taken by the student")
+                        connection.close()
+                    else:
+                        curs.execute("select * from borrow_record where stu_roll=%s", self.stu_roll_entry.get())
+                        rows = curs.fetchall()
+                        if len(rows) >= 3:
+                            messagebox.showerror("Max. 3 books to each student", "Borrow books limit has exceed")
+                            connection.close()
+                        else:
+                            curs.execute("insert into borrow_record (book_id,book_name,stu_roll,stu_name,course,subject,issue_date,return_date) values(%s,%s,%s,%s,%s,%s,%s,%s)",
+                                                (
+                                                    self.book_id_entry.get(),
+                                                    self.book_name_entry.get(),
+                                                    self.stu_roll_entry.get(),
+                                                    self.stu_name_entry.get(),
+                                                    self.course_entry.get(),
+                                                    self.subject_entry.get(),
+                                                    self.issue_date_entry.get(),
+                                                    self.return_date_entry.get()
+                                                ))
+                            book_quantity -= 1
+                            curs.execute("update book_list set qty=%s where book_id=%s", (book_quantity,self.book_id_entry.get()))
+                            connection.commit()
+                            connection.close()
+                            messagebox.showinfo('Done!', "The data has been submitted")
+                            self.reset_issuebook_fields()
+            except Exception as e:
+                messagebox.showerror("Error!",f"Error due to {str(e)}",parent=self.window)
+    
+    # Reset all the entry fields of add new book form
+    def reset_fields(self):
+        self.id_entry.delete(0, END)
+        self.bookname_entry.delete(0, END)
+        self.author_entry.delete(0, END)
+        self.edition_entry.delete(0, END)
+        self.price_entry.delete(0, END)
+        self.qty_entry.delete(0, END)
+    
+    # Reset all the entry fields issue a book form
+    def reset_issuebook_fields(self):
+        self.book_id_entry.delete(0, END)
+        self.book_name_entry.delete(0, END)
+        self.stu_roll_entry.delete(0, END)
+        self.stu_name_entry.delete(0, END)
+        self.course_entry.delete(0, END)
+        self.subject_entry.delete(0, END)
+        self.issue_date_entry.delete(0, END)
+        self.return_date_entry.delete(0, END)
+
+    # Removes all widgets from the frame 1 and frame 3
+    def ClearScreen(self):
+        for widget in self.frame_1.winfo_children():
+            widget.destroy()
+
+        for widget in self.frame_3.winfo_children():
+            widget.destroy()
+
+        # Load and resize the background image
+        self.background_image = Image.open("image.jpg")  # Use your image name here
+        self.background_image = self.background_image.resize((740, 500), Image.LANCZOS)  # Resize if needed
+        self.bg_image = ImageTk.PhotoImage(self.background_image)
+
+        # Create a label with the background image
+        background_label = tk.Label(self.frame_1, image=self.bg_image)
+        background_label.place(x=0, y=0, relwidth=1, relheight=1)
+
+        # Now you can add other widgets to your frame
+        # title_label = tk.Label(self.frame_1, text="Library Management System", font=("Helvetica", 24), bg="white")
+        # title_label.pack(pady=20)
+
+    '''Exit window'''
+    def Exit(self):
+        self.window.destroy()
+
+# The main function
+if __name__ == "__main__":
+    root = Tk()
+    obj = Management(root)
+    root.mainloop()
